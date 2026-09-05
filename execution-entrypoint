@@ -10,6 +10,10 @@ METRICS_PORT="${METRICS_PORT:-6060}"
 DISCOVERY_PORT="${DISCOVERY_PORT:-30303}"
 V5_DISCOVERY_PORT="${V5_DISCOVERY_PORT:-9200}"
 P2P_PORT="${P2P_PORT:-30303}"
+HTTP_API="${HTTP_API:-eth,net,web3}"
+WS_API="${WS_API:-eth,net,web3}"
+HTTP_CORS_DOMAIN="${HTTP_CORS_DOMAIN:-http://localhost}"
+WS_ORIGINS="${WS_ORIGINS:-http://localhost}"
 ADDITIONAL_ARGS=""
 BINARY="./base-reth-node"
 RETH_HISTORICAL_PROOFS="${RETH_HISTORICAL_PROOFS:-false}"
@@ -96,7 +100,6 @@ if [[ "$RETH_HISTORICAL_PROOFS" == "true" && -n "$RETH_HISTORICAL_PROOFS_STORAGE
         if echo "$RESPONSE" | grep -q '"number":"0x0"'; then
             echo "waiting for reth node to sync beyond genesis block"
         elif echo "$RESPONSE" | grep -q '"result"'; then
-            # curl succeeded and returned a valid result with block number != 0x0
             break
         else
             echo "waiting for reth node to start up"
@@ -111,14 +114,12 @@ if [[ "$RETH_HISTORICAL_PROOFS" == "true" && -n "$RETH_HISTORICAL_PROOFS_STORAGE
         fi
     done
 
-    # shut down gracefully
     kill "$PID"
 
     (wait_for_pid "$PID" && echo "reth node initialized") || echo "warning: reth node exited with code $?"
 
     ADDITIONAL_ARGS="$ADDITIONAL_ARGS --proofs-history --proofs-history.storage-path=$RETH_HISTORICAL_PROOFS_STORAGE_PATH"
 
-    # in this case, we need to run the init script first (idempotent)
     "$BINARY" proofs init \
         -$LOG_LEVEL \
         --log.stdout.format json \
@@ -136,15 +137,15 @@ exec "$BINARY" node \
   --datadir="$RETH_DATA_DIR" \
   --log.stdout.format json \
   --ws \
-  --ws.origins="*" \
+  --ws.origins="$WS_ORIGINS" \
   --ws.addr=0.0.0.0 \
   --ws.port="$WS_PORT" \
-  --ws.api=web3,debug,eth,net,txpool \
+  --ws.api="$WS_API" \
   --http \
-  --http.corsdomain="*" \
+  --http.corsdomain="$HTTP_CORS_DOMAIN" \
   --http.addr=0.0.0.0 \
   --http.port="$RPC_PORT" \
-  --http.api=web3,debug,eth,net,txpool,miner \
+  --http.api="$HTTP_API" \
   --ipcpath="$IPC_PATH" \
   --authrpc.addr=0.0.0.0 \
   --authrpc.port="$AUTHRPC_PORT" \
